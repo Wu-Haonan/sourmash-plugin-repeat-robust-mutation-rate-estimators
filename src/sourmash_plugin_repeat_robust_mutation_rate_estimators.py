@@ -67,18 +67,18 @@ def _r_from_q(q, k):
     return 1.0 - (1.0 - q) ** (1.0 / k)
 
 
-def estimate_r_pp(diff, L_s, k):
-    return _r_from_q(diff / L_s, k)
+def estimate_r_pp(diff, L_t, k):
+    return _r_from_q(diff / L_t, k)
 
 
-def estimate_r_pc(diff_multi, L_s, k):
-    return _r_from_q(diff_multi / L_s, k)
+def estimate_r_pc(diff_multi, L_t, k):
+    return _r_from_q(diff_multi / L_t, k)
 
 
-def estimate_r_cc(diff_multi, L_s, k, sum_occ_h1):
-    r_pc = estimate_r_pc(diff_multi, L_s, k)
-    correction = sum_occ_h1 * ((1.0 - r_pc) ** (k - 1)) * r_pc / 3.0
-    q_cc = (diff_multi + correction) / L_s
+def estimate_r_cc(diff_multi, L_t, k, sum_occ_h1_normalized):
+    r_pc = estimate_r_pc(diff_multi, L_t, k)
+    correction = sum_occ_h1_normalized * ((1.0 - r_pc) ** (k - 1)) * r_pc / 3.0
+    q_cc = diff_multi / L_t + correction
     return _r_from_q(q_cc, k)
 
 
@@ -162,13 +162,14 @@ def sketch_multiplicity(sequence, k, scaled):
 
 def sketch_extended(sequence, k, scaled):
     std = sketch_standard(sequence, k, scaled)
+    L_s = std['L']
     sum_occ_h1 = compute_sum_occ_h1(sequence, k)
     return {
         'mode': 'extended',
         'k': k, 'scaled': scaled,
-        'L': std['L'],
+        'L': L_s,
         'hashes': std['hashes'],
-        'sum_occ_h1': sum_occ_h1,
+        'sum_occ_h1': sum_occ_h1 / L_s, 
     }
 
 
@@ -250,7 +251,7 @@ def load_sketch_sig(sig_path):
 
 def compute_diffs(sk_s, sk_t):
     scaled = sk_s['scaled']
-    L_s = sk_s['L']
+    L_t = sk_t['L']          
     s_hashes = sk_s['hashes']
     t_counts = sk_t['counts']
 
@@ -261,7 +262,7 @@ def compute_diffs(sk_s, sk_t):
             diff += 1
             diff_multi += count
 
-    return min(diff * scaled, L_s), min(diff_multi * scaled, L_s)
+    return min(diff * scaled, L_t), min(diff_multi * scaled, L_t)
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +379,7 @@ class Command_MutationRate(CommandLinePlugin):
 
         k = sk_s['k']
         L_s = sk_s['L']
+        L_t = sk_t['L']
 
         # r_pp: t is standard (no counts), treat each hash as count=1
         if args.estimator == 'r_pp':
@@ -386,11 +388,11 @@ class Command_MutationRate(CommandLinePlugin):
         diff, diff_multi = compute_diffs(sk_s, sk_t)
 
         if args.estimator == 'r_pp':
-            result = estimate_r_pp(diff, L_s, k)
+            result = estimate_r_pp(diff, L_t, k)
         elif args.estimator == 'r_pc':
-            result = estimate_r_pc(diff_multi, L_s, k)
+            result = estimate_r_pc(diff_multi, L_t, k)
         elif args.estimator == 'r_cc':
-            result = estimate_r_cc(diff_multi, L_s, k, sk_s['sum_occ_h1'])
+            result = estimate_r_cc(diff_multi, L_t, k, sk_s['sum_occ_h1'])
 
         notify(f"\nEstimator : {args.estimator}")
         notify(f"k         : {k}")
