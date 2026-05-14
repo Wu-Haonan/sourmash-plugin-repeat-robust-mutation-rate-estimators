@@ -1,0 +1,18 @@
+[project]
+name = "sourmash-plugin-repeat-robust-mutation-rate-estimators"
+description = "sourmash plugin for repeat-robust mutation rate estimation (r_pp, r_pc, r_cc)."
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
+dependencies = ["sourmash>=4.8.14,<5"]
+
+[metadata]
+license = { text = "BSD 3-Clause License" }
+
+[project.entry-points."sourmash.cli_script"]
+sketch       = "sourmash_plugin_repeat_robust_mutation_rate_estimators:Command_Sketch"
+mutation_rate = "sourmash_plugin_repeat_robust_mutation_rate_estimators:Command_MutationRate"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
