@@ -1,21 +1,21 @@
 # sourmash-plugin-repeat-robust-mutation-rate-estimators
 
-[sourmash](https://sourmash.bio) is a tool for biological sequence analysis and comparisons.
+This is a [sourmash](https://sourmash.bio/) plugin that estimates the **mutation rate** between two DNA sequences using repeat-robust $k$-mer-based estimators. It is particularly well-suited for highly repetitive sequences such as **centromeres**.
 
-This plugin implements repeat-robust substitution rate estimators r_pp, r_pc, and r_cc based on FracMinHash sketches, as described in:
+The method is described in:
 
-> Wu, H. and Medvedev, P. (2026). Repeat-robust estimation of substitution rates from k-mer sketches. *bioRxiv*. https://www.biorxiv.org/content/10.64898/2026.04.01.715966v1
+> Wu, H. and Medvedev, P. (2026). The gift of novelty: repeat-robust *k*-mer-based estimators of mutation rates. *bioRxiv*. https://www.biorxiv.org/content/10.64898/2026.04.01.715966v1
+
+---
 
 ## Installation
 
-Install sourmash, then install this plugin:
-
 ```
-# Option 1:
+# Option 1: conda + pip (recommended)
 conda install -c conda-forge -c bioconda sourmash
 pip install sourmash-plugin-repeat-robust-mutation-rate-estimators
 
-# Option 2:
+# Option 2: pip only
 pip install sourmash
 pip install sourmash-plugin-repeat-robust-mutation-rate-estimators
 ```
@@ -28,54 +28,77 @@ sourmash scripts
 
 You should see `sketch` and `mutation_rate` listed under available plugin commands.
 
-## Usage
+---
 
-### Background
+## Supported Input
 
-We only consider genome vs genome (Fasta files).
+This tool accepts **FASTA files** (`.fa`, `.fasta`) as input. Each FASTA file may contain multiple records. This tool is designed for **full-length assembled sequences** only, such as whole genome vs. whole genome or full centromere sequence vs. full centromere sequence. We currently **Do NOT** supported:
 
-The three estimators treat the two input sequences **asymmetrically**: we assume string t is mutated from string s.
+- Sequencing reads vs. genome
+- Sequencing reads vs. sequencing reads
 
-If unsure which is s and which is t, use the longer sequence as s.
+---
 
-Each estimator requires a specific sketch mode:
+## Mutation Model and Sequence Assignment ($s$ and $t$)
 
-| Estimator | s sketch mode | t sketch mode |
-|-----------|--------------|--------------|
-| `r_pp`    | `standard`   | `standard`   |
-| `r_pc`    | `standard`   | `multiplicity` |
-| `r_cc`    | `extended`   | `multiplicity` |
+We consider the following substitution model, parameterized by a rate $0 \le r \le 1$. Given a string $s$, the character at each position independently mutates to one of the three other nucleotides with probability $r/3$. We denote the mutated string as $t$.
 
-In general, estimators that use more information achieve higher accuracy.
+**The roles of $s$ and $t$ are not symmetric.** Swapping them may give different results, especially for repetitive sequences.
+
+- **If you know the biological direction** (e.g., one sequence is ancestral), assign the ancestral sequence as $s$ and the derived sequence as $t$.
+- **If you are unsure**, use the longer sequence as $s$ and the shorter as $t$. We cannot guarantee accuracy if the assignment is unclear. If you are comparing many sequences (e.g., building a phylogenetic tree), be consistent: always assign the longer sequence as $s$ across all pairs.
+
+---
+
+## Estimators and Usage
+
+This plugin provides three estimators. Each estimator requires a specific **sketch mode** for $s$ and $t$. Choose your estimator first, then sketch accordingly.
+
+| Estimator | Sketch mode for s | Sketch mode for t | Accuracy |
+|-----------|------------------|------------------|----------|
+| `r_pp`    | `standard`       | `standard`       | Lower    |
+| `r_pc`    | `standard`       | `multiplicity`   | Medium   |
+| `r_cc`    | `extended`       | `multiplicity`   | Highest  |
+
+- **r_pp** (presence-to-presence): uses distinct $k$-mers of both $s$ and $t$.
+- **r_pc** (presence-to-count): uses distinct $k$-mers of $s$ and $k$-mer counts of $t$.
+- **r_cc** (count-to-count): uses $k$-mer counts of both $s$ and $t$, with a bias correction term precomputed from $s$. Most accurate for repetitive sequences. Note: sketching $s$ with `extended` mode may take longer for large genomes.
 
 ### Step 1: Sketch your sequences
 
-```
-# For r_pp
-sourmash scripts sketch s.fa --sketch-mode standard    -o s.sig -k 21 --scaled 1000
-sourmash scripts sketch t.fa --sketch-mode standard    -o t.sig -k 21 --scaled 1000
+Choose the commands that match your chosen estimator:
 
-# For r_pc
+**For r_pp** — sketch both sequences with `standard`:
+```
+sourmash scripts sketch s.fa --sketch-mode standard -o s.sig -k 21 --scaled 1000
+sourmash scripts sketch t.fa --sketch-mode standard -o t.sig -k 21 --scaled 1000
+```
+
+**For r_pc** — sketch $s$ with `standard`, sketch $t$ with `multiplicity`:
+```
 sourmash scripts sketch s.fa --sketch-mode standard    -o s.sig -k 21 --scaled 1000
 sourmash scripts sketch t.fa --sketch-mode multiplicity -o t.sig -k 21 --scaled 1000
+```
 
-# For r_cc
+**For r_cc** — sketch $s$ with `extended`, sketch $t$ with `multiplicity`:
+```
 sourmash scripts sketch s.fa --sketch-mode extended    -o s.sig -k 21 --scaled 1000
 sourmash scripts sketch t.fa --sketch-mode multiplicity -o t.sig -k 21 --scaled 1000
 ```
 
-Sketch modes:
-- `standard`: stores distinct k-mer hashes and L, where L = |x| - k + 1 is the total number of k-mers in string x. Use as s or t for r_pp.
-- `multiplicity`: stores k-mer hashes with per-hash counts and L. Use as t for r_pc and r_cc.
-- `extended`: stores distinct k-mer hashes, L, and a precomputed correction constant `sum_occ_h1`. Use as s for r_cc. Note: computing `sum_occ_h1` requires reading the full sequence and may take longer for large genomes.
+Parameters:
+- `-k`: $k$-mer size.
+- `--scaled`: subsampling rate. Larger value leads to smaller sketch, faster but less precise.
 
-### Step 2: Estimate mutation rate
+### Step 2: Estimate the mutation rate
 
 ```
 sourmash scripts mutation_rate --estimator r_pp --s-sig s.sig --t-sig t.sig
 sourmash scripts mutation_rate --estimator r_pc --s-sig s.sig --t-sig t.sig
 sourmash scripts mutation_rate --estimator r_cc --s-sig s.sig --t-sig t.sig
 ```
+
+If the sketch modes do not match the estimator requirements, the tool will report an error and tell you which modes are needed.
 
 Example output:
 ```
@@ -86,24 +109,19 @@ L_s       : 4800000
 Estimated mutation rate : 0.012345
 ```
 
+---
+
 ## Support
 
 Please file issues at https://github.com/Wu-Haonan/sourmash-plugin-repeat-robust-mutation-rate-estimators/issues
 
-## Dev docs
-
-`sourmash-plugin-repeat-robust-mutation-rate-estimators` is developed at https://github.com/Wu-Haonan/sourmash-plugin-repeat-robust-mutation-rate-estimators.
-
+---
 
 ## Citation
 
 If you use this plugin, please cite:
 
-```
-Wu, H. and Medvedev, P. (2026). Repeat-robust estimation of substitution rates
-from k-mer sketches. bioRxiv.
-https://www.biorxiv.org/content/10.64898/2026.04.01.715966v1
-```
+> Wu, H. and Medvedev, P. (2026). The gift of novelty: repeat-robust *k*-mer-based estimators of mutation rates. *bioRxiv*. https://www.biorxiv.org/content/10.64898/2026.04.01.715966v1
 
 ## License
 
