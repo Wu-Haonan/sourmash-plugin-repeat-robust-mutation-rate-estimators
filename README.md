@@ -32,6 +32,8 @@ You should see `sketch` and `mutation_rate` listed under available plugin comman
 
 ### Background
 
+We only consider genome vs genome (Fasta files).
+
 The three estimators treat the two input sequences **asymmetrically**: we assume string t is mutated from string s.
 
 If unsure which is s and which is t, use the longer sequence as s.
