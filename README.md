@@ -60,7 +60,7 @@ This plugin provides three estimators. Each estimator requires a specific **sket
 | `r_pc`    | `standard`       | `multiplicity`   | Medium   |
 | `r_cc`    | `extended`       | `multiplicity`   | Highest  |
 
-- **r_pp** (presence-to-presence): uses distinct $k$-mers of both $s$ and $t$.
+- **r_pp** (presence-to-presence): uses distinct $k$-mers of both $s$ and $t$, if you do not trust the count information of $s$ and $t$.
 - **r_pc** (presence-to-count): uses distinct $k$-mers of $s$ and $k$-mer counts of $t$.
 - **r_cc** (count-to-count): uses $k$-mer counts of both $s$ and $t$, with a bias correction term precomputed from $s$. Most accurate for repetitive sequences. Note: sketching $s$ with `extended` mode may take longer for large genomes.
 
