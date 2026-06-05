@@ -106,7 +106,7 @@ Please file issues at https://github.com/Wu-Haonan/sourmash-plugin-repeat-robust
 
 If you use this plugin, please cite:
 
-> Wu, H. and Medvedev, P. (2026). The gift of novelty: repeat-robust *k*-mer-based estimators of mutation rates. *bioRxiv*. https://www.biorxiv.org/content/10.64898/2026.04.01.715966v1
+> Wu, H. and Medvedev, P. (2026). The gift of novelty: repeat-robust *k*-mer-based estimators of mutation rates. Proceedings of ISMB 2026, to appear in *Bionformatics*.
 
 ## License
 
