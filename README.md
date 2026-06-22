@@ -1,4 +1,4 @@
-# Repeat-robust estimator for mutation rate
+# Repeat-robust estimators for mutation rate
 
 This repo describes a [sourmash](https://sourmash.bio/) plugin that estimates the mutation rate between two DNA sequences.
 It implements the estimators from this [ISMB paper](https://doi.org/10.64898/2026.04.01.715966).
